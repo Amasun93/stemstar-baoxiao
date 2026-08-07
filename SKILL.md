@@ -7,13 +7,14 @@ description: Organize and audit StemStar reimbursement materials for Sun David/S
 
 ## Purpose
 
-Use this skill to organize reimbursement materials in the local reimbursement workspace. The expected workflow is:
+Use this skill to organize reimbursement materials in local and cloud workspaces. The expected workflow is:
 
-1. Put new, unsubmitted materials into a monthly pending folder.
+1. Put new, unsubmitted materials into a monthly pending folder (local or cloud).
 2. Normalize item folders and file names by amount, event, route, and material type.
 3. Check amount consistency across invoices, payment screenshots, order screenshots, itineraries, and zip contents.
 4. Remind the user about missing invoices, missing itineraries, amount mismatches, unclear payers/buyers, or routes that do not match.
 5. After the user says items were submitted, move them into `00 归档/YYMM 报销-总金额`.
+6. When the PC is off, accept materials via cloud storage bridge; sync to local NAS on startup.
 
 ## Workspace
 
@@ -22,6 +23,45 @@ Default reimbursement root:
 `D:\NAS_Amasun\01 工作\教学任务\D01 报销`
 
 If the user gives another reimbursement folder, use that folder. If the current working directory is already inside a reimbursement root, prefer the current root. Never assume the Desktop is the final storage location; files supplied from Desktop should usually be copied into the reimbursement workspace, leaving originals intact unless the user explicitly asks to move/delete them.
+
+## Cloud Storage（云���中转 · 可选）
+
+When the user's PC is offline (e.g., they send materials from mobile while traveling), a cloud knowledge base can serve as a bridge. **Cloud storage is optional — local folder is the primary/required workspace.**
+
+### Recommended: 乐享知识库（Lexiang）
+
+If the user has the Lexiang MCP connector, use it as the cloud bridge:
+
+- **To accept materials offline:** Upload screenshots/PDFs to the user's personal knowledge base in Lexiang (usually named `{姓名}的个人知识库`).
+- **Upload flow:** Use Lexiang MCP: `file_apply_upload` → HTTP PUT to `upload_url` → `file_commit_upload` → `entry_create_entry` to place in folder.
+- **Folder convention in cloud:** Mirror local structure — create `StemStar 报销中转/YYMM 待报销/` in the knowledge base.
+- **On PC startup (sync):** Scan the cloud `StemStar 报销中转` folder → download any new files → archive to local NAS → mark as synced.
+
+### Fallback: ima 知识库
+
+If Lexiang is not connected but ima-mcp is:
+
+- Use `create_media` → COS upload → `add_knowledge` to the user's ima knowledge base.
+- Same folder convention: `StemStar 报销中转/YYMM 待报销/`.
+
+### Cloud Setup Dialogue
+
+During first-time setup, after creating the local folder, ask:
+
+> 要不要顺便配个云端中转？电脑关机时，手机发的报销材料可以暂存在云端。
+>
+> 推荐 **乐享知识库**（如果你接了）：关机也能收材料，开机会自动同步到本地。
+>
+> 不需要的话跳过，只用本地文件夹也完全够用。
+
+If user says yes and Lexiang is connected:
+1. Call `whoami` to get `personal_space.root_entry_id`.
+2. Create folder `StemStar 报销中转` inside personal space via `entry_create_entry`.
+3. Confirm to user: cloud bridge ready.
+
+If user says yes and only ima is connected, use ima instead.
+
+If user skips, proceed with local-only setup.
 
 ## First-Time Setup（首次使用引导）
 
@@ -210,6 +250,37 @@ When the user asks to clean old archives:
 4. Preserve old nested item folders unless the user asks to rename files inside them.
 5. Move empty or ambiguous legacy folders to a clearly named `待确认材料` folder inside the relevant archive or pending month; do not create root-level `待整理`.
 6. Summarize which folders were normalized and which need manual confirmation.
+
+## Cloud Sync Workflow（云端同步 · 开机自动执行）
+
+When the skill is loaded at session start, silently check if a cloud bridge is configured:
+
+### On Session Start (Skill Load)
+
+1. **Check for cloud config.** If the user has previously set up a cloud storage (stored in workspace memory), quickly verify it's still accessible.
+2. **Scan cloud for new materials.** Call the appropriate MCP to list entries in `StemStar 报销中转/`:
+   - Lexiang: `entry_list_children` on the bridge folder.
+   - ima: `get_knowledge_list` on the bridge folder.
+3. **Download and archive.** For any new files found:
+   - Download via MCP (`file_download_file` for Lexiang, or `fetch_media_content` for ima).
+   - Save to the correct local `YYMM 待报销/金额 事项/` folder.
+   - Rename according to file naming rules.
+   - Report: "从云端同步了 N 个新材料：{列表}"
+4. **No new files.** Say nothing — don't interrupt the user.
+
+### On Receiving Materials While PC is Off
+
+When the user is on mobile and the PC is off:
+- If they send screenshots via WorkBuddy cloud, accept them.
+- Upload to the configured cloud bridge under `StemStar 报销中转/YYMM 待报销/金额 事项/`.
+- Note: "已存到云端中转，电脑开机后自动同步到本地报销文件夹。"
+
+### Skill Update Check
+
+At session start, also check for skill updates:
+- Run `git -C <skill_dir> fetch origin main 2>/dev/null && git -C <skill_dir> diff --stat origin/main` to see if updates are available.
+- If newer version exists, mention briefly: "stemstar-baoxiao 有新版本，已自动拉取" and `git pull`.
+- If pull fails (no network, no git), skip silently.
 
 ## Safety
 
