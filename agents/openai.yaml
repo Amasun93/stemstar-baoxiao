@@ -1,0 +1,4 @@
+interface:
+  display_name: "StemStar 报销归档"
+  short_description: "Organize StemStar reimbursement files"
+  default_prompt: "Use $stemstar-baoxiao to organize my reimbursement materials into pending and archived monthly folders."
