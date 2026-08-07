@@ -23,6 +23,51 @@ Default reimbursement root:
 
 If the user gives another reimbursement folder, use that folder. If the current working directory is already inside a reimbursement root, prefer the current root. Never assume the Desktop is the final storage location; files supplied from Desktop should usually be copied into the reimbursement workspace, leaving originals intact unless the user explicitly asks to move/delete them.
 
+## First-Time Setup（首次使用引导）
+
+When the reimbursement root does not exist or is empty (no `00 归档`, no `YYMM 待报销`), this is a new user. Do NOT error out. Instead, guide them through a one-time setup:
+
+### Trigger
+
+Any of these signals mean first-time setup is needed:
+- Reimbursement root path does not exist on disk.
+- Root exists but is empty (no `00 归档/` and no `* 待报销/`).
+- User says "第一次用" / "怎么开始" / "创建报销文件夹".
+
+### Setup Dialogue
+
+1. **Detect the problem.** Internally note that the workspace is missing. Do not show an error.
+
+2. **Ask one question — where to create the folder:**
+
+   > 看起来这是你第一次用报销整理。报销文件夹建在哪儿？
+   >
+   > 建议：`桌面/报销材料` 或 `文档/报销材料`，以后方便找到就行。
+   >
+   > 也可以直接告诉我路径，比如 `D:\工作\报销`。
+
+3. **After user confirms the path**, create this minimal structure:
+
+   ```
+   报销根目录/
+   ├── 00 归档/
+   └── YYMM 待报销/    ← 当月，如 2608 待报销
+   ```
+
+4. **Confirm to user:**
+
+   > 已建好：
+   > - `路径/00 归档/` → 提报后归档
+   > - `路径/2608 待报销/` → 当月待报销材料
+   >
+   > 以后发支付截图、订单截图、发票给我，我帮你归进去。
+
+5. **Remember the path** for this session. Ask user if they want it as permanent default (if they confirm, note it; future sessions will need to re-ask or be configured).
+
+### Existing users (structure already exists)
+
+Skip the setup dialogue. Use the existing workspace as-is. If `00 归档` is missing but other structure exists, create it silently.
+
 ## Folder Rules
 
 Use these top-level folders:
